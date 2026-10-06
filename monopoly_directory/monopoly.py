@@ -634,8 +634,18 @@ def process_roll(num_rolls: int, dice: tuple) -> str:
     """
     bottom_screen_wipe()
     update_history(f"{players[turn]} rolled {dice[0]} and {dice[1]}")
+    was_in_jail = players[turn].jail
 
-    if dice[0] == dice[1]:
+    if was_in_jail:
+        left_jail, reason = players[turn].attempt_jail_roll(dice)
+        if not left_jail:
+            update_history(f"{players[turn].name} is still in jail. Turns in jail: {players[turn].jail_turns}")
+        elif reason == "doubles":
+            update_history(f"{players[turn].name} rolled doubles and got out of jail!")
+        else:
+            update_history(f"{players[turn].name} paid ${50*players[turn].repeat_offender} to post bail.")
+
+    elif dice[0] == dice[1]:
         if  num_rolls == 1:
             update_history(f"{players[turn]} rolled doubles! Roll again.")
 
@@ -645,6 +655,7 @@ def process_roll(num_rolls: int, dice: tuple) -> str:
         elif num_rolls == 3:
             update_history(f"{players[turn]} rolled doubles three times\n in a row!")
             update_history(f"{players[turn]} is going to jail!")
+            board.update_location(players[turn], players[turn].location, 10)
             players[turn].go_to_jail()
     refresh_board()
     #if player rolled their third double they will be in jail and their location doesn't update
@@ -657,9 +668,10 @@ def process_roll(num_rolls: int, dice: tuple) -> str:
 
     # print("Board updated: " + get_gameboard())
 
-    return evaluate_board_location(num_rolls, dice)
+    can_roll_again = dice[0] == dice[1] and not was_in_jail
+    return evaluate_board_location(num_rolls, dice, can_roll_again)
 
-def evaluate_board_location(num_rolls: int, dice: tuple) -> str:
+def evaluate_board_location(num_rolls: int, dice: tuple, can_roll_again: bool = False) -> str:
     """
     Custom function to evaluate the board location, meant to be called from banker.py\n
     TODO add more detail here
@@ -694,8 +706,10 @@ def evaluate_board_location(num_rolls: int, dice: tuple) -> str:
                 players[turn].pay(200)
                 update_history(f"{players[turn].name} paid income tax ($200)")
             elif (board.locations[players[turn].location].owner == -6): #jail
-                update_history("Just visiting!")
+                if not players[turn].jail:
+                    update_history("Just visiting!")
             elif (board.locations[players[turn].location].owner == -7):  # go to jail
+                board.update_location(players[turn], players[turn].location, 10)
                 players[turn].go_to_jail()
             elif (board.locations[players[turn].location].owner == -8):  # free parking
                 pass
@@ -720,11 +734,9 @@ def evaluate_board_location(num_rolls: int, dice: tuple) -> str:
             players[board.locations[cl].owner].receive(rent)
             update_history(f"{players[turn].name} paid ${rent} to {players[board.locations[cl].owner].name}")
     refresh_board()
-        
-    # Check for doubles and roll again only if player wasn't in jail at the start of their turn
-    if dice[0] == dice[1]: # and not was_in_jail:
-        num_rolls += 1
-        request_roll()
+
+    if can_roll_again and not players[turn].jail:
+        return output + set_cursor_str(0, 36) + "You rolled doubles! Type roll to roll again." + get_gameboard()
     return "player_choice" + output + set_cursor_str(0, 36) + "e to end turn, p to manage properties, d to view a deed?" + get_gameboard()
 
 def end_turn():

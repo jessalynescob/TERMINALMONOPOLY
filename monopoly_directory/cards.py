@@ -95,6 +95,7 @@ class Cards:
         elif (card_number == 5):
             p.jail_cards += 1
         elif (card_number == 6):
+            board.update_location(p, p.location, 10)
             p.go_to_jail()
         elif (card_number == 7):
             p.receive(100)
