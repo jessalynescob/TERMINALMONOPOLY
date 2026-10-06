@@ -644,7 +644,6 @@ def monopoly_game(client: Client = None, cmd: str = None) -> None:
         Most of the game logic can be handled on the player side, but banker will
         have to preface the messages with cash, properties, etc. 
     """
-    dice = (0, -1)
     if mply.players[mply.turn].name == client.name: # Check if the client who sent data is the current player 
                                                     #TODO restrict name values so identical names are disallowed
         action = cmd.split(',')[1]
@@ -656,15 +655,12 @@ def monopoly_game(client: Client = None, cmd: str = None) -> None:
             client.num_rolls += 1
             ret_val = mply.process_roll(client.num_rolls, dice)
             if ret_val.startswith("player_choice"):
-                ret_val.replace("player_choice", "")
+                ret_val = ret_val.replace("player_choice", "", 1)
                 client.can_roll = False
             net.send_notif(client.socket, ret_val, "MPLY:")
         elif action == 'trybuy': #TODO Better handling of locations would be nice. 
             mply.buy_logic("banker", "b")
             ret_val = mply.get_gameboard()
-            # Need to check if doubles were rolled, otherwise end the rolling phase
-            if dice[0] != dice[1]:
-                client.can_roll = False
             net.send_notif(client.socket, ret_val, "MPLY:")
         elif action == 'propmgmt': #TODO This is almost complete. Still somewhat buggy.
             try: 
@@ -683,6 +679,7 @@ def monopoly_game(client: Client = None, cmd: str = None) -> None:
             ret_val = mply.get_gameboard()
             net.send_notif(client.socket, ret_val, "MPLY:")
         elif action == 'endturn' and not client.can_roll:
+            client.num_rolls = 0
             mply.end_turn()
             ret_val = "ENDOFTURN" + mply.get_gameboard()
             net.send_notif(client.socket, ret_val, "MPLY:")
